@@ -1,27 +1,30 @@
-FROM docker.io/library/node:20.13.0-alpine
+# Use a base image with better compatibility
+FROM node:20.13.0-slim
 
 ENV PYTHONUNBUFFERED=1
 RUN set -ex && \
-    apk add --no-cache gcc g++ musl-dev python3 openjdk17 ruby iptables ip6tables
+    apt-get update && \
+    apt-get install -y gcc g++ python3 openjdk-17-jdk ruby iptables iputils-ping libsqlite3-dev
 
-RUN set -ex && \
-    apk add --no-cache chromium lsof
+# Add frontend files
+ADD . /usr/src/app/
+WORKDIR /usr/src/app/frontend
 
-RUN set -ex && \
-    rm -f /usr/libexec/gcc/x86_64-alpine-linux-musl/6.4.0/cc1obj && \
-    rm -f /usr/libexec/gcc/x86_64-alpine-linux-musl/6.4.0/lto1 && \
-    rm -f /usr/libexec/gcc/x86_64-alpine-linux-musl/6.4.0/lto-wrapper && \
-    rm -f /usr/bin/x86_64-alpine-linux-musl-gcj
+# Install frontend dependencies and build the frontend
+RUN npm install
+RUN npm run build
 
-RUN ln -sf python3 /usr/bin/python
+WORKDIR /usr/src/app
 
-ADD . /usr/bin/
-ADD start.sh /usr/bin/
+# Remove existing node_modules to avoid architecture mismatch
+RUN rm -rf node_modules
+# Install server dependencies
+RUN npm install
 
-RUN npm --prefix /usr/bin/ install
-EXPOSE 8080
+EXPOSE 3000
 
-# add a dummy user that will run the server, hence sandboxing the rest of the container
-RUN addgroup -S -g 2000 runner && adduser -S -D -u 2000 -s /sbin/nologin -h /tmp -G runner runner
-#   USER runner
-CMD sh /usr/bin/start.sh
+# Add a dummy user that will run the server, hence sandboxing the rest of the container
+RUN addgroup --gid 2000 runner && adduser --uid 2000 --gid 2000 --disabled-password --gecos "" runner
+USER runner
+
+CMD ["node", "server.js"]
