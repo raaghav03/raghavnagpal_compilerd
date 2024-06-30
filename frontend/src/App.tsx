@@ -14,7 +14,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./components/ui/dropdown";
 import { Button } from "./components/ui/button";
@@ -24,23 +23,31 @@ if (typeof window !== "undefined") {
   Prism.manual = true;
 }
 
-const languageMap: { [key: string]: string } = {
-  nodejs: "javascript",
-  python: "python",
-  cpp: "cpp",
-  clike: "c",
-  java: "java",
-  ruby: "ruby",
+const languageMap: { [key: string]: { name: string; icon: React.ReactNode } } = {
+  nodejs: { name: 'Node.js', icon: <Javascript /> },
+  python: { name: 'Python', icon: <Python /> },
+  cpp: { name: 'C++', icon: <CPP /> },
+  c: { name: 'C', icon: <C /> },
+  java: { name: 'Java', icon: <Java /> },
+  ruby: { name: 'Ruby', icon: <Ruby /> },
+};
+
+const placeholderMap: { [key: string]: string } = {
+  nodejs: 'console.log("Hello, World!");',
+  python: 'print("Hello, World!")',
+  cpp: '#include <iostream>\nint main() {\n    std::cout << "Hello, World!" << std::endl;\n    return 0;\n}',
+  c: '#include <stdio.h>\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}',
+  java: 'public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}',
+  ruby: 'puts "Hello, World!"',
 };
 
 const OnlineCompiler = () => {
   const [highlightLanguage, setHighlightLanguage] = useState("javascript");
   const [compileLanguage, setCompileLanguage] = useState("nodejs");
-  const [script, setScript] = useState("");
+  const [script, setScript] = useState(placeholderMap["nodejs"]);
   const [output, setOutput] = useState("");
   const [error, setError] = useState("");
   const textareaRef = useRef(null);
-  const [position, setPosition] = React.useState("bottom");
   const preRef = useRef(null);
 
   useEffect(() => {
@@ -49,8 +56,10 @@ const OnlineCompiler = () => {
 
   const handleCompileLanguageChange = (lang: string) => {
     setCompileLanguage(lang);
-    setHighlightLanguage(languageMap[lang]);
+    setHighlightLanguage(languageMap[lang].name.toLowerCase());
+    setScript(placeholderMap[lang]);
   };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
@@ -79,84 +88,49 @@ const OnlineCompiler = () => {
     <div className="flex h-screen bg-gray-100">
       <div className="w-1/2 p-4 flex flex-col">
         <h1 className="text-3xl font-bold mb-4">Online Compiler</h1>
-        {/* <DropdownMenu
-          value={compileLanguage}
-          onChange={handleCompileLanguageChange}
-        >
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline">{compileLanguage}</Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem className="flex flex-row gap-2" v>
-              <Javascript />
-              Javascript
-            </DropdownMenuItem>
-            <DropdownMenuItem className="flex flex-row gap-2">
-              <Java />
-              Java
-            </DropdownMenuItem>
-            <DropdownMenuItem className="flex flex-row gap-2">
-              <Python />
-              Python
-            </DropdownMenuItem>
-            <DropdownMenuItem className="flex flex-row gap-2">
-              <CPP />
-              C++
-            </DropdownMenuItem>
-            <DropdownMenuItem className="flex flex-row gap-2">
-              <C />C
-            </DropdownMenuItem>
-            <DropdownMenuItem className="flex flex-row gap-2">
-              <Ruby />
-              Ruby
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu> */}
-
         <form onSubmit={handleSubmit} className="mb-4">
-          <label
-            htmlFor="compileLanguage"
-            className="block text-sm font-medium text-gray-700 mb-2"
-          >
-            Compilation Language:
-          </label>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline">{compileLanguage}</Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem className="flex flex-row gap-2" onClick={() => handleCompileLanguageChange('nodejs')}>
-                <Javascript />
-                Node.js
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-row gap-2" onClick={() => handleCompileLanguageChange('java')}>
-                <Java />
-                Java
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-row gap-2" onClick={() => handleCompileLanguageChange('python')}>
-                <Python />
-                Python
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-row gap-2" onClick={() => handleCompileLanguageChange('cpp')}>
-                <CPP />
-                C++
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-row gap-2" onClick={() => handleCompileLanguageChange('clike')}>
-                <C />
-                C
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-row gap-2" onClick={() => handleCompileLanguageChange('ruby')}>
-                <Ruby />
-                Ruby
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <button
-            type="submit"
-            className="w-full bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600 transition-colors"
-          >
-            Run
-          </button>
+          <div>
+            <label
+              htmlFor="compileLanguage"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Compilation Language:
+            </label>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-fit flex items-center justify-between">
+                  <span className="flex items-center">
+                    <div className="flex flex-row gap-2 items-center">
+                      {languageMap[compileLanguage].icon}
+                      {languageMap[compileLanguage].name}
+                    </div>
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-fit">
+                {Object.entries(languageMap).map(([key, { name, icon }]) => (
+                  <DropdownMenuItem
+                    key={key}
+                    className="flex flex-row px-4 py-2 w-full"
+                    onClick={() => handleCompileLanguageChange(key)}
+                  >
+                    <div className="flex flex-row gap-4 text-lg items-center w-full">
+                      {icon}
+                      {name}
+                    </div>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div className="flex flex-row gap-4 w-full">
+            <button
+              type="submit"
+              className="w-1/2 bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600 transition-colors"
+            >
+              Run
+            </button>
+          </div>
         </form>
         <div className="relative flex-grow overflow-hidden rounded-md shadow-sm">
           <pre
@@ -167,6 +141,7 @@ const OnlineCompiler = () => {
           </pre>
           <textarea
             ref={textareaRef}
+            placeholder="start typing your code"
             value={script}
             onChange={handleScriptChange}
             className="absolute top-0 left-0 w-full h-full resize-none bg-transparent text-transparent caret-black font-mono p-4 z-10 outline-none"
