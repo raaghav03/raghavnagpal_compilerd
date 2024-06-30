@@ -9,7 +9,7 @@ import "prismjs/components/prism-clike";
 import "prismjs/components/prism-java";
 import "prismjs/components/prism-ruby";
 import "prismjs/themes/prism-tomorrow.css";
-import { XCircle } from "lucide-react";
+import { XCircle, ChevronDown, Play, Loader2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,46 +23,57 @@ if (typeof window !== "undefined") {
   Prism.manual = true;
 }
 
-const languageMap: { [key: string]: { name: string; icon: React.ReactNode } } = {
-  nodejs: { name: 'Node.js', icon: <Javascript /> },
-  python: { name: 'Python', icon: <Python /> },
-  cpp: { name: 'C++', icon: <CPP /> },
-  c: { name: 'C', icon: <C /> },
-  java: { name: 'Java', icon: <Java /> },
-  ruby: { name: 'Ruby', icon: <Ruby /> },
+type CompileLanguage = "nodejs" | "python" | "cpp" | "c" | "java" | "ruby";
+type SyntaxLanguage = "javascript" | "python" | "cpp" | "c" | "java" | "ruby";
+
+interface LanguageInfo {
+  name: string;
+  icon: React.ReactNode;
+  syntaxLanguage: SyntaxLanguage;
+}
+
+const languageMap: Record<CompileLanguage, LanguageInfo> = {
+  nodejs: { name: "Node.js", icon: <Javascript />, syntaxLanguage: "javascript" },
+  python: { name: "Python", icon: <Python />, syntaxLanguage: "python" },
+  cpp: { name: "C++", icon: <CPP />, syntaxLanguage: "cpp" },
+  c: { name: "C", icon: <C />, syntaxLanguage: "c" },
+  java: { name: "Java", icon: <Java />, syntaxLanguage: "java" },
+  ruby: { name: "Ruby", icon: <Ruby />, syntaxLanguage: "ruby" },
 };
 
-const placeholderMap: { [key: string]: string } = {
+const placeholderMap: Record<CompileLanguage, string> = {
   nodejs: 'console.log("Hello, World!");',
   python: 'print("Hello, World!")',
   cpp: '#include <iostream>\nint main() {\n    std::cout << "Hello, World!" << std::endl;\n    return 0;\n}',
   c: '#include <stdio.h>\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}',
-  java: 'public class Main {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}',
+  java: 'public class Solution {\n    public static void main(String[] args) {\n        System.out.println("Hello, World!");\n    }\n}',
   ruby: 'puts "Hello, World!"',
 };
 
-const OnlineCompiler = () => {
-  const [highlightLanguage, setHighlightLanguage] = useState("javascript");
-  const [compileLanguage, setCompileLanguage] = useState("nodejs");
-  const [script, setScript] = useState(placeholderMap["nodejs"]);
-  const [output, setOutput] = useState("");
-  const [error, setError] = useState("");
-  const textareaRef = useRef(null);
-  const preRef = useRef(null);
+const OnlineCompiler: React.FC = () => {
+  const [compileLanguage, setCompileLanguage] = useState<CompileLanguage>("nodejs");
+  const [syntaxLanguage, setSyntaxLanguage] = useState<SyntaxLanguage>("javascript");
+  const [script, setScript] = useState<string>(placeholderMap["nodejs"]);
+  const [output, setOutput] = useState<string>("");
+  const [error, setError] = useState<string>("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const preRef = useRef<HTMLPreElement>(null);
+  const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
     Prism.highlightAll();
-  }, [script, highlightLanguage]);
+  }, [script, syntaxLanguage]);
 
-  const handleCompileLanguageChange = (lang: string) => {
+  const handleCompileLanguageChange = (lang: CompileLanguage) => {
     setCompileLanguage(lang);
-    setHighlightLanguage(languageMap[lang].name.toLowerCase());
+    setSyntaxLanguage(languageMap[lang].syntaxLanguage);
     setScript(placeholderMap[lang]);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
     try {
       const response = await axios.post("/api/execute", {
         language: compileLanguage,
@@ -71,12 +82,13 @@ const OnlineCompiler = () => {
       setOutput(response.data.output);
     } catch (error) {
       setError("Error executing the script");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleScriptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    setScript(value);
+    setScript(e.target.value);
   };
 
   const clearOutput = () => {
@@ -85,63 +97,66 @@ const OnlineCompiler = () => {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      <div className="w-1/2 p-4 flex flex-col">
-        <h1 className="text-3xl font-bold mb-4">Online Compiler</h1>
+    <div className="flex flex-col lg:flex-row h-screen bg-gray-100">
+      <div className="w-full lg:w-1/2 p-4 flex flex-col">
+        <h1 className="text-3xl font-bold mb-6 text-gray-800">Online Compiler</h1>
         <form onSubmit={handleSubmit} className="mb-4">
-          <div>
-            <label
-              htmlFor="compileLanguage"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Compilation Language:
-            </label>
+          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 mb-4">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-fit flex items-center justify-between">
-                  <span className="flex items-center">
-                    <div className="flex flex-row gap-2 items-center">
+                <Button variant="outline" className="w-full sm:w-48 h-12">
+                  <span className="flex items-center justify-between w-full">
+                    <span className="flex items-center space-x-2">
                       {languageMap[compileLanguage].icon}
-                      {languageMap[compileLanguage].name}
-                    </div>
+                      <span>{languageMap[compileLanguage].name}</span>
+                    </span>
+                    <ChevronDown className="h-4 w-4" />
                   </span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-fit">
+              <DropdownMenuContent className="w-48">
                 {Object.entries(languageMap).map(([key, { name, icon }]) => (
                   <DropdownMenuItem
                     key={key}
-                    className="flex flex-row px-4 py-2 w-full"
-                    onClick={() => handleCompileLanguageChange(key)}
+                    onClick={() => handleCompileLanguageChange(key as CompileLanguage)}
                   >
-                    <div className="flex flex-row gap-4 text-lg items-center w-full">
+                    <span className="flex items-center space-x-2">
                       {icon}
-                      {name}
-                    </div>
+                      <span>{name}</span>
+                    </span>
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-          <div className="flex flex-row gap-4 w-full">
-            <button
+
+            <Button
               type="submit"
-              className="w-1/2 bg-blue-500 text-white p-2 rounded-md hover:bg-blue-600 transition-colors"
+              className="w-full sm:w-48 h-12 bg-blue-500 hover:bg-blue-600 text-white transition-colors duration-200"
+              disabled={loading}
             >
-              Run
-            </button>
+              {loading ? (
+                <span className="flex items-center justify-center space-x-2">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Running...</span>
+                </span>
+              ) : (
+                <span className="flex items-center justify-center space-x-2">
+                  <Play className="h-5 w-5" />
+                  <span>Run Code</span>
+                </span>
+              )}
+            </Button>
           </div>
         </form>
-        <div className="relative flex-grow overflow-hidden rounded-md shadow-sm">
+        <div className="relative flex-grow overflow-hidden rounded-lg shadow-md border border-gray-200">
           <pre
             ref={preRef}
-            className={`language-${highlightLanguage} absolute top-0 left-0 m-0 w-full h-full overflow-auto`}
+            className={`language-${syntaxLanguage} absolute top-0 left-0 m-0 w-full h-full overflow-auto`}
           >
             <code>{script}</code>
           </pre>
           <textarea
             ref={textareaRef}
-            placeholder="start typing your code"
             value={script}
             onChange={handleScriptChange}
             className="absolute top-0 left-0 w-full h-full resize-none bg-transparent text-transparent caret-black font-mono p-4 z-10 outline-none"
@@ -149,7 +164,6 @@ const OnlineCompiler = () => {
               fontFamily: "monospace",
               fontSize: "14px",
               lineHeight: "1.5",
-              color: "rgba(0,0,0,0.0)",
               caretColor: "black",
             }}
             spellCheck="false"
@@ -158,18 +172,20 @@ const OnlineCompiler = () => {
           />
         </div>
       </div>
-      <div className="w-1/2 p-4 bg-gray-200 flex flex-col">
+      <div className="w-full lg:w-1/2 p-4 bg-gray-200 flex flex-col">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">Output</h2>
-          <button
+          <h2 className="text-2xl font-bold text-gray-800">Output</h2>
+          <Button
             onClick={clearOutput}
-            className="text-gray-500 hover:text-gray-700"
+            variant="outline"
+            className="text-gray-600 hover:text-gray-800 hover:bg-gray-300 transition-colors duration-200"
           >
-            <XCircle size={24} />
-          </button>
+            <XCircle className="h-4 w-4 mr-2" />
+            Clear Output
+          </Button>
         </div>
-        <pre className="flex-grow p-4 bg-white rounded-md shadow-inner overflow-auto">
-          {error && <div className="text-red-500">{error}</div>}
+        <pre className="flex-grow p-4 bg-white rounded-lg shadow-inner overflow-auto border border-gray-300">
+          {error && <div className="text-red-500 font-semibold mb-2">{error}</div>}
           {output}
         </pre>
       </div>
